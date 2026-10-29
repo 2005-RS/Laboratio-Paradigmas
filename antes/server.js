@@ -103,7 +103,7 @@ app.use(function (err, req, res, next) {
   res.redirect('/auth-error?reason=' + reason);
 });
 
-if (require.main === module) {
+if (require.main === module && !process.env.VERCEL) {
   server.listen(port, function () {
     console.log('UNA Chat en http://localhost:' + port);
   });
