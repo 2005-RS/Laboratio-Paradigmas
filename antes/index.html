@@ -1,73 +1,102 @@
 <!doctype html>
-<html>
+<html lang="es">
   <head>
-    <title>Chat Socket.IO UNA</title>
+    <meta charset="utf-8">
+    <title>UNA Chat</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font: 13px Helvetica, Arial; }
-      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
-      form input { border: 0; padding: 10px;}
-      form button { width: 10%; background: rgb(130, 224, 255);  border: none; padding: 10px; }
-      #messages { list-style-type: none; margin: 0; padding: 0; }
-      #messages li { padding: 5px 10px; }
-      #messages li:nth-child(odd) { background: #eee; }
-      #messages { margin-bottom: 40px }
-      #nombre, #m { display: inline-block;}
-      #m {width: 69%; margin-right: 4px;}
-      #nombre {width: 20%}
+      body { font: 14px Helvetica, Arial, sans-serif; color: #1c1917; }
+      header {
+        position: sticky; top: 0; display: flex; justify-content: space-between;
+        align-items: center; gap: 12px; padding: 10px 14px;
+        background: #0b6b3a; color: #fff;
+      }
+      header a { color: #fff; }
+      #identidad { line-height: 1.3; }
+      #messages { list-style: none; margin: 0 0 64px; padding: 8px 0; }
+      #messages li { padding: 8px 14px; }
+      #messages li:nth-child(odd) { background: #f4f1ea; }
+      form {
+        background: #1c1917; padding: 8px; position: fixed; bottom: 0;
+        width: 100%; display: flex; gap: 8px;
+      }
+      form input { border: 0; padding: 10px; flex: 1; }
+      form button { border: 0; padding: 10px 16px; background: #8ed9c0; cursor: pointer; }
+      #aviso { padding: 10px 14px; color: #7f1d1d; }
     </style>
   </head>
   <body>
+    <header>
+      <div id="identidad">Identificando sesión…</div>
+      <a href="/logout">Cerrar sesión</a>
+    </header>
+    <p id="aviso" hidden></p>
     <ul id="messages"></ul>
     <form action="">
-      <input id="nombre" autocomplete="off" placeholder="Username"/>
-      <input id="m" autocomplete="off" placeholder="Escriba un mensaje" /><button>Send</button>
+      <input id="m" autocomplete="off" placeholder="Escriba un mensaje" />
+      <button>Enviar</button>
     </form>
     <script src="https://cdn.socket.io/4.7.2/socket.io.js"></script>
     <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
     <script>
+      var colorHexTxt = "";
 
-    var colorHexTxt = "";
-
-    // genera colores aleatorios en hexadeximal
-    function getRandomColor() {
+      function getRandomColor() {
         var letters = '0123456789ABCDEF';
         var color = '#';
         for (var i = 0; i < 6; i++) {
           color += letters[Math.floor(Math.random() * 16)];
         }
-
         return color;
-     }
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
 
       $(function () {
+        fetch('/api/me').then(function (response) {
+          if (!response.ok) throw new Error('auth');
+          return response.json();
+        }).then(function (me) {
+          var text = me.name;
+          if (me.email) text += ' · ' + me.email;
+          document.getElementById('identidad').textContent = text;
+        }).catch(function () {
+          window.location.href = '/login';
+        });
+
         var socket = io();
-
-        // emite evento al servidor
-        
-        $('form').submit(function(){
-            var nombreTxt = $('#nombre').val() || "Anomimo";
-            var mensajeTxt = $('#m').val();
-
-            if (colorHexTxt == "") {
-                colorHexTxt = getRandomColor();
-            }
-
-            var jsonMsg = { nombre: nombreTxt, mensaje: mensajeTxt, color: colorHexTxt };
-            socket.emit('Evento-Mensaje-Server', JSON.stringify(jsonMsg));
-            $('#m').val('');
-            return false;
+        socket.on('connect_error', function () {
+          var aviso = document.getElementById('aviso');
+          aviso.hidden = false;
+          aviso.textContent = 'No se pudo conectar al chat. Inicia sesión e inténtalo de nuevo.';
         });
 
-        // ... (resto del código) ...
-
-        socket.on('Evento-Mensaje-Server', function(msg){
-            var msgJson = JSON.parse(msg);
-            var mensajeDisplay = "<b style='color:"+ msgJson.color +"'>" + msgJson.nombre + "</b>: " + msgJson.mensaje;
-            $('#messages').append($('<li>').html(mensajeDisplay));
-            window.scrollTo(0, document.body.scrollHeight);
+        $('form').submit(function () {
+          var mensajeTxt = $('#m').val();
+          if (!mensajeTxt) return false;
+          if (colorHexTxt === "") colorHexTxt = getRandomColor();
+          socket.emit('Evento-Mensaje-Server', JSON.stringify({
+            mensaje: mensajeTxt,
+            color: colorHexTxt
+          }));
+          $('#m').val('');
+          return false;
         });
 
+        socket.on('Evento-Mensaje-Server', function (msg) {
+          var msgJson = JSON.parse(msg);
+          var color = /^#[0-9A-Fa-f]{6}$/.test(msgJson.color) ? msgJson.color : '#0b6b3a';
+          var mensajeDisplay = "<b style='color:" + color + "'>" +
+            escapeHtml(msgJson.nombre || '') + "</b>: " + (msgJson.mensaje || '');
+          $('#messages').append($('<li>').html(mensajeDisplay));
+          window.scrollTo(0, document.body.scrollHeight);
+        });
       });
     </script>
   </body>
