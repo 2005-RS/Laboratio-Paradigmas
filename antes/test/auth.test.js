@@ -34,11 +34,16 @@ describe('UNA Chat sin credenciales', function () {
 
   before(function () {
     this.timeout(10000);
-    delete process.env.AUTH0_SECRET;
-    delete process.env.AUTH0_BASE_URL;
-    delete process.env.AUTH0_CLIENT_ID;
-    delete process.env.AUTH0_ISSUER_BASE_URL;
-    delete process.env.AUTH0_CLIENT_SECRET;
+    [
+      'AUTH0_SECRET',
+      'AUTH0_BASE_URL',
+      'AUTH0_CLIENT_ID',
+      'AUTH0_ISSUER_BASE_URL',
+      'AUTH0_CLIENT_SECRET'
+    ].forEach(function (key) {
+      process.env[key] = ' ';
+    });
+    delete require.cache[require.resolve('../server')];
     app = require('../server');
   });
 

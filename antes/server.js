@@ -88,12 +88,7 @@ io.on('connection', function (socket) {
       return;
     }
     if (!parsed || typeof parsed !== 'object') return;
-    parsed.nombre = socket.data.displayName;
-    if (typeof parsed.mensaje !== 'string') parsed.mensaje = '';
-    if (typeof parsed.color !== 'string' || !/^#[0-9A-Fa-f]{6}$/.test(parsed.color)) {
-      parsed.color = '#0b6b3a';
-    }
-    io.emit('Evento-Mensaje-Server', validation.validateMessage(JSON.stringify(parsed)));
+    io.emit('Evento-Mensaje-Server', processChatMessage(msg, socket.data.displayName));
   });
 });
 
@@ -110,6 +105,25 @@ if (require.main === module && !process.env.VERCEL) {
 }
 
 module.exports = app;
+module.exports.processChatMessage = processChatMessage;
+
+function processChatMessage(msg, displayName) {
+  var parsed;
+  try {
+    parsed = JSON.parse(msg);
+  } catch (e) {
+    return validation.validarMensaje(JSON.stringify({ mensaje: '' }));
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    return validation.validarMensaje(JSON.stringify({ mensaje: '' }));
+  }
+  parsed.nombre = displayName || 'Usuario';
+  if (typeof parsed.mensaje !== 'string') parsed.mensaje = '';
+  if (typeof parsed.color !== 'string' || !/^#[0-9A-Fa-f]{6}$/.test(parsed.color)) {
+    parsed.color = '#0b6b3a';
+  }
+  return validation.validarMensaje(JSON.stringify(parsed));
+}
 
 function loadEnvFile(file) {
   if (!fs.existsSync(file)) return;
